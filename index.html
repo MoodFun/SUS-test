@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUS Calculator</title>
+
+<style>
+:root{
+    --primary:#0078D4;
+    --primary-light:#E8F3FF;
+    --border:#D9D9D9;
+    --bg:#F5F7FA;
+    --text:#323130;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    padding:40px 20px;
+    font-family:"Segoe UI", Arial, sans-serif;
+    background:var(--bg);
+    color:var(--text);
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+}
+
+.header{
+    text-align:center;
+    margin-bottom:40px;
+}
+
+.header h1{
+    margin-bottom:10px;
+    font-size:38px;
+}
+
+.subtitle{
+    color:#605E5C;
+    font-size:18px;
+}
+
+.progress-wrapper{
+    position:sticky;
+    top:0;
+    background:white;
+    padding:15px;
+    border-radius:12px;
+    margin-bottom:30px;
+    box-shadow:0 2px 12px rgba(0,0,0,.08);
+    z-index:100;
+}
+
+.progress-bar{
+    height:12px;
+    width:100%;
+    background:#EDEBE9;
+    border-radius:999px;
+    overflow:hidden;
+}
+
+.progress-fill{
+    height:100%;
+    width:0%;
+    background:var(--primary);
+    transition:.3s;
+}
+
+.progress-text{
+    margin-bottom:10px;
+    font-weight:600;
+}
+
+.question{
+    background:white;
+    border-radius:16px;
+    padding:32px;
+    margin-bottom:28px;
+    box-shadow:0 2px 10px rgba(0,0,0,.05);
+}
+
+.question h3{
+    margin-top:0;
+    font-size:22px;
+    line-height:1.5;
+}
+
+.scale-labels{
+    display:flex;
+    justify-content:space-between;
+    margin-bottom:15px;
+    color:#605E5C;
+    font-size:14px;
+}
+
+.options{
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+    justify-content:center;
+}
+
+.options input{
+    display:none;
+}
+
+.score-btn{
+    width:70px;
+    height:70px;
+    border-radius:14px;
+    border:2px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:22px;
+    font-weight:700;
+    cursor:pointer;
+    transition:.2s;
+    background:white;
+}
+
+.score-btn:hover{
+    transform:translateY(-2px);
+}
+
+.options input:checked + label{
+    background:var(--primary);
+    color:white;
+    border-color:var(--primary);
+}
+
+.calculate{
+    width:100%;
+    padding:18px;
+    font-size:20px;
+    font-weight:700;
+    border:none;
+    background:var(--primary);
+    color:white;
+    border-radius:14px;
+    cursor:pointer;
+}
+
+.calculate:hover{
+    background:#106EBE;
+}
+
+.result{
+    display:none;
+    margin-top:30px;
+    background:white;
+    padding:30px;
+    border-radius:18px;
+    text-align:center;
+    box-shadow:0 2px 20px rgba(0,0,0,.08);
+}
+
+.score{
+    font-size:64px;
+    font-weight:800;
+    color:var(--primary);
+}
+
+.grade{
+    font-size:30px;
+    margin:20px 0;
+}
+
+.interpretation{
+    font-size:20px;
+    line-height:1.6;
+}
+
+.copy-btn{
+    margin-top:20px;
+    padding:12px 22px;
+    border:none;
+    border-radius:10px;
+    background:#107C10;
+    color:white;
+    cursor:pointer;
+    font-size:16px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<div class="header">
+    <h1>System Usability Scale (SUS)</h1>
+    <p class="subtitle">
+        Please rate your agreement with each statement.
+    </p>
+</div>
+
+<div class="progress-wrapper">
+    <div class="progress-text">
+        Completed: <span id="count">0</span> / 10
+    </div>
+    <div class="progress-bar">
+        <div class="progress-fill" id="progress"></div>
+    </div>
+</div>
+
+<form id="susForm"></form>
+
+<button class="calculate" onclick="calculateSUS()">
+    Calculate SUS Score
+</button>
+
+<div class="result" id="result">
+    <div class="score" id="score"></div>
+    <div class="grade" id="grade"></div>
+    <div class="interpretation" id="interpretation"></div>
+
+    <button class="copy-btn" onclick="sendEmail()">
+        Send Result
+    </button>
+</div>
+
+</div>
+
+<script>
+
+const questions = [
+"I think that I would like to use this system frequently.",
+"I found the system unnecessarily complex.",
+"I thought the system was easy to use.",
+"I think that I would need the support of a technical person to be able to use this system.",
+"I found the various functions in this system were well integrated.",
+"I thought there was too much inconsistency in this system.",
+"I would imagine that most people would learn to use this system very quickly.",
+"I found the system very cumbersome to use.",
+"I felt very confident using this system.",
+"I needed to learn a lot of things before I could get going with this system."
+];
+
+const form = document.getElementById("susForm");
+
+questions.forEach((q,index)=>{
+
+const div=document.createElement("div");
+div.className="question";
+
+let html=`
+<h3>${index+1}. ${q}</h3>
+
+<div class="scale-labels">
+<span>Strongly Disagree</span>
+<span>Strongly Agree</span>
+</div>
+
+<div class="options">`;
+
+for(let i=1;i<=5;i++){
+html+=`
+<input type="radio"
+id="q${index}_${i}"
+name="q${index}"
+value="${i}"
+onchange="updateProgress()">
+
+<label class="score-btn" for="q${index}_${i}">
+${i}
+</label>`;
+}
+
+html+=`</div>`;
+
+div.innerHTML=html;
+form.appendChild(div);
+
+});
+
+function updateProgress(){
+
+let answered=0;
+
+for(let i=0;i<10;i++){
+if(document.querySelector(`input[name=q${i}]:checked`))
+answered++;
+}
+
+document.getElementById("count").innerText=answered;
+document.getElementById("progress").style.width = (answered/10)*100 + "%";
+}
+
+function calculateSUS(){
+
+let total=0;
+
+for(let i=0;i<10;i++){
+
+const selected =
+document.querySelector(`input[name=q${i}]:checked`);
+
+if(!selected){
+alert("Please answer all questions.");
+return;
+}
+
+let value=parseInt(selected.value);
+
+if(i % 2 === 0){
+total += value - 1;
+}
+else{
+total += 5 - value;
+}
+}
+
+const sus = total * 2.5;
+
+let grade;
+if(sus>=84.1) grade="A+";
+else if(sus>=80.8) grade="A";
+else if(sus>=78.9) grade="A-";
+else if(sus>=77.2) grade="B+";
+else if(sus>=74.1) grade="B";
+else if(sus>=72.6) grade="B-";
+else if(sus>=71.1) grade="C+";
+else if(sus>=65) grade="C";
+else if(sus>=62.7) grade="C-";
+else if(sus>=51.7) grade="D";
+else grade="F";
+
+let interpretation;
+
+if(sus >= 80)
+    interpretation =
+    "Excellent usability. Users are highly likely to recommend this experience.";
+
+else if(sus >= 68)
+    interpretation =
+    "Above-average usability. The experience performs well but still has opportunities for improvement.";
+
+else
+    interpretation =
+    "Below-average usability. Significant usability improvements should be considered.";
+
+document.getElementById("score").innerHTML =
+sus.toFixed(1) + "/100";
+
+document.getElementById("grade").innerHTML =
+"Grade: " + grade;
+
+document.getElementById("interpretation").innerHTML =
+interpretation;
+
+document.getElementById("result").style.display="block";
+
+window.scrollTo({
+top: document.body.scrollHeight,
+behavior: "smooth"
+});
+}
+
+function sendEmail() {
+
+    const score =
+        document.getElementById("score").innerText;
+
+    const grade =
+        document.getElementById("grade").innerText;
+
+    let body = "SUS RESULTS\n\n";
+
+    for(let i = 0; i < 10; i++){
+
+        const selected =
+            document.querySelector(
+                "input[name=q" + i + "]:checked"
+            );
+
+        body += "Q";
+        body += (i + 1);
+        body += ": ";
+        body += selected.value;
+        body += "\n";
+    }
+
+    body += "\n";
+    body += score;
+    body += "\n";
+    body += grade;
+
+    const subject =
+        encodeURIComponent("BOSS User Test Result");
+
+    const mailBody =
+        encodeURIComponent(body);
+
+    window.location.href =
+        "mailto:fang-yun.wu@nxp.com" +
+        "?subject=" + subject +
+        "&body=" + mailBody;
+}
+
+function copyResult(){
+
+const score=document.getElementById("score").innerText;
+const grade=document.getElementById("grade").innerText;
+
+navigator.clipboard.writeText(
+`${score} | ${grade}`
+);
+
+alert("Result copied.");
+}
+
+</script>
+
+</body>
+</html>
